@@ -1,0 +1,8 @@
+{
+  "name": "lamplighters-log",
+  "version": "0.1.0",
+  "description": "A lighthouse mystery text adventure with an optional model narrator and a rule-based guard.",
+  "scripts": { "test": "node --test" },
+  "license": "MIT",
+  "private": true
+}
