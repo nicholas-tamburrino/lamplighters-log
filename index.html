@@ -1,0 +1,210 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The Lamplighter's Log</title>
+<meta name="description" content="A lighthouse mystery text adventure. Relight the lamp before the Halcyon reaches the rocks.">
+<style>
+  :root {
+    --bg: #0c1220; --panel: #121a2b; --ink: #e8e2d0; --dim: #8b93a7; --amber: #f2b85b; --amber-d: #b9812a;
+    --line: #243049; --bad: #e0795f; --good: #7fcf9b;
+  }
+  @media (prefers-color-scheme: light) {
+    :root:not([data-theme="dark"]) { --bg: #f3efe4; --panel: #fbf8ef; --ink: #1f2430; --dim: #5d6579; --amber: #b9680c; --amber-d: #8d4f08; --line: #d8d0bb; --bad: #b5391d; --good: #1f7a45; }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 17px/1.55 Georgia, 'Iowan Old Style', serif; min-height: 100vh; }
+  .wrap { max-width: 720px; margin: 0 auto; padding: 0 16px 40px; }
+  header { padding: 22px 0 10px; display: flex; align-items: center; gap: 16px; }
+  .tower { position: relative; width: 56px; height: 72px; flex: none; }
+  .tower .body { position: absolute; left: 16px; bottom: 0; width: 24px; height: 52px; background: linear-gradient(90deg, var(--line), var(--dim)); clip-path: polygon(14% 0, 86% 0, 100% 100%, 0 100%); }
+  .tower .top { position: absolute; left: 14px; top: 6px; width: 28px; height: 14px; border: 2px solid var(--dim); border-radius: 3px; background: var(--panel); transition: background .6s, box-shadow .6s; }
+  .tower.lit .top { background: var(--amber); box-shadow: 0 0 22px 8px var(--amber); }
+  .beam { position: absolute; left: 28px; top: 12px; width: 300px; height: 10px; margin-top: -5px; transform-origin: 0 50%; background: linear-gradient(90deg, rgba(242,184,91,.55), transparent); opacity: 0; clip-path: polygon(0 40%, 100% 0, 100% 100%, 0 60%); }
+  .tower.lit .beam { opacity: 1; animation: sweep 6s ease-in-out infinite alternate; }
+  @keyframes sweep { from { transform: rotate(-12deg); } to { transform: rotate(10deg); } }
+  @media (prefers-reduced-motion: reduce) { .tower.lit .beam { animation: none; } }
+  h1 { font-size: 24px; margin: 0; letter-spacing: .01em; }
+  .sub { color: var(--dim); font-size: 14px; margin: 2px 0 0; }
+  .status { display: grid; gap: 6px; margin: 8px 0 12px; font: 13px/1.3 ui-monospace, 'SF Mono', Menlo, Consolas, monospace; color: var(--dim); }
+  .bar { height: 6px; background: var(--line); border-radius: 3px; overflow: hidden; }
+  .bar i { display: block; height: 100%; width: 0; background: var(--amber); transition: width .3s, background .3s; }
+  .bar i.late { background: var(--bad); }
+  .row { display: flex; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+  #log { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; height: 52vh; min-height: 280px; overflow-y: auto; }
+  .turn { margin: 0 0 14px; white-space: pre-wrap; }
+  .you { color: var(--amber); font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 14px; margin: 0 0 4px; }
+  .tag { display: inline-block; font: 11px/1 ui-monospace, Menlo, monospace; border: 1px solid var(--line); border-radius: 4px; padding: 2px 5px; margin-left: 6px; color: var(--dim); vertical-align: middle; }
+  .tag.model { color: var(--good); border-color: var(--good); }
+  .tag.rej { color: var(--bad); border-color: var(--bad); }
+  .end { color: var(--amber); }
+  form { display: flex; gap: 8px; margin-top: 10px; }
+  input[type=text], select, input[type=password] { background: var(--panel); color: var(--ink); border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; font: inherit; font-size: 16px; }
+  #cmd { flex: 1; min-width: 0; font-family: ui-monospace, Menlo, Consolas, monospace; }
+  button { background: var(--amber); color: #1a1205; border: 0; border-radius: 8px; padding: 10px 16px; font: 600 15px system-ui, sans-serif; cursor: pointer; }
+  button.ghost { background: transparent; color: var(--ink); border: 1px solid var(--line); padding: 7px 10px; font-weight: 500; font-size: 14px; }
+  button:focus-visible, input:focus-visible, select:focus-visible, summary:focus-visible { outline: 2px solid var(--amber); outline-offset: 2px; }
+  .quick { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 10px; }
+  details { margin-top: 18px; border: 1px solid var(--line); border-radius: 10px; padding: 10px 14px; background: var(--panel); font-size: 15px; }
+  summary { cursor: pointer; color: var(--dim); }
+  details label { display: grid; gap: 4px; margin: 10px 0; font-size: 14px; color: var(--dim); }
+  details p { margin: 8px 0; color: var(--dim); font-size: 14px; }
+  .small { font-size: 13px; color: var(--dim); }
+  .hide { display: none; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="tower" id="tower" aria-hidden="true"><div class="beam"></div><div class="body"></div><div class="top"></div></div>
+    <div>
+      <h1>The Lamplighter's Log</h1>
+      <p class="sub">A lighthouse mystery. The lamp is dark and a ship is coming.</p>
+    </div>
+  </header>
+
+  <div class="status" aria-label="Game status">
+    <div class="row"><span id="place">The Landing</span><span id="counts">Turn 0 of 50 &middot; hints 0</span></div>
+    <div class="bar" role="progressbar" aria-label="The Halcyon's approach" aria-valuemin="0" aria-valuemax="50" aria-valuenow="0" id="barwrap"><i id="bar"></i></div>
+  </div>
+
+  <div id="log" role="log" aria-live="polite" tabindex="0"></div>
+
+  <form id="form" autocomplete="off">
+    <input type="text" id="cmd" placeholder="What do you do? (try: help)" aria-label="Command" autocapitalize="off" autocorrect="off" spellcheck="false">
+    <button type="submit">Go</button>
+  </form>
+  <div class="quick" id="quick"></div>
+
+  <details>
+    <summary>Narrator: scripted (default) or a model</summary>
+    <p>The game works fully offline with the written text. Optionally a model can rewrite what you see. The game engine decides what is true; a rule-based guard throws out any model text that invents objects or exits, and the game falls back to the written text. Keys stay in this page's memory and are never saved.</p>
+    <label>Mode
+      <select id="mode">
+        <option value="scripted">Scripted (no model)</option>
+        <option value="ollama">Local model via Ollama</option>
+        <option value="openai">OpenAI-compatible API</option>
+      </select>
+    </label>
+    <div id="cfg" class="hide">
+      <label>Model name <input type="text" id="model" placeholder="llama3.1:8b"></label>
+      <label id="hostrow">Server URL <input type="text" id="host" placeholder="http://localhost:11434"></label>
+      <label id="keyrow" class="hide">API key (memory only) <input type="password" id="key" autocomplete="off"></label>
+      <p>Ollama needs <code>OLLAMA_ORIGINS</code> set to allow this page's address. Model replies: <span id="mstats">0 accepted, 0 rejected</span>. <span class="small" id="lastrej"></span></p>
+    </div>
+  </details>
+
+  <p class="small" style="margin-top:18px"><button class="ghost" id="newgame" type="button">New game</button> &nbsp; Source and tests: <a href="https://github.com/nicholas-tamburrino/lamplighters-log" style="color:var(--amber)">github.com/nicholas-tamburrino/lamplighters-log</a></p>
+</div>
+
+<script src="src/world.js"></script>
+<script src="src/engine.js"></script>
+<script src="src/narrator.js"></script>
+<script>
+(function () {
+  const E = window.LampEngine, N = window.LampNarrator;
+  const $ = (id) => document.getElementById(id);
+  let s, busy = false, acc = 0, rej = 0;
+  const hist = [];
+  let hpos = 0;
+
+  function append(you, text, tag) {
+    const d = document.createElement('div');
+    d.className = 'turn';
+    if (you !== null) { const y = document.createElement('div'); y.className = 'you'; y.textContent = '> ' + you; d.appendChild(y); }
+    const p = document.createElement('div');
+    p.textContent = text;
+    if (tag) { const t = document.createElement('span'); t.className = 'tag ' + tag.cls; t.textContent = tag.label; t.title = tag.title || ''; p.appendChild(t); }
+    d.appendChild(p);
+    $('log').appendChild(d);
+    $('log').scrollTop = $('log').scrollHeight;
+    return p;
+  }
+
+  function refresh(res) {
+    const lim = E.world.limit;
+    $('place').textContent = E.world.rooms[s.room].name;
+    $('counts').textContent = 'Turn ' + s.turn + ' of ' + lim + ' · hints ' + s.hints;
+    const bar = $('bar');
+    bar.style.width = Math.min(100, (s.turn / lim) * 100) + '%';
+    bar.className = s.turn >= lim * 0.7 ? 'late' : '';
+    $('barwrap').setAttribute('aria-valuenow', String(s.turn));
+    $('tower').className = 'tower' + (s.status === 'won' ? ' lit' : '');
+  }
+
+  function ask() {
+    const mode = $('mode').value;
+    const model = $('model').value.trim();
+    if (mode === 'scripted' || !model) return null;
+    if (mode === 'ollama') return N.adapters.ollama({ model, host: $('host').value.trim() });
+    const apiKey = $('key').value;
+    if (!apiKey) return null;
+    return N.adapters.openai({ model, baseUrl: $('host').value.trim(), apiKey });
+  }
+
+  async function run(input) {
+    if (busy) return;
+    const text = input.trim();
+    if (!text) return;
+    hist.push(text); hpos = hist.length;
+    busy = true;
+    const res = E.step(s, text);
+    refresh(res);
+    const fn = ask();
+    if (fn && ['room', 'warning', 'rescue'].includes(res.event)) {
+      const slot = append(text, res.text);
+      slot.textContent = 'Narrator is writing…';
+      const out = await N.narrate(res, fn);
+      slot.textContent = out.text;
+      const t = document.createElement('span');
+      if (out.source === 'model') { acc++; t.className = 'tag model'; t.textContent = 'model'; }
+      else { rej++; t.className = 'tag rej'; t.textContent = 'written text'; t.title = (out.rejected || []).join('; '); $('lastrej').textContent = 'Last rejection: ' + (out.rejected || []).join('; '); }
+      slot.appendChild(t);
+      $('mstats').textContent = acc + ' accepted, ' + rej + ' rejected';
+    } else {
+      append(text, res.text);
+    }
+    if (res.over) {
+      const done = document.createElement('div');
+      done.className = 'turn end';
+      done.textContent = '[Finished in ' + s.turn + ' turns with ' + s.hints + ' hint' + (s.hints === 1 ? '' : 's') + '. Press New game to try another way.' + (s.ending === 'light' ? ' There is a better ending to find.' : '') + ']';
+      $('log').appendChild(done);
+      $('log').scrollTop = $('log').scrollHeight;
+    }
+    busy = false;
+  }
+
+  function start() {
+    s = E.newGame();
+    $('log').innerHTML = '';
+    hist.length = 0;
+    append(null, 'THE LAMPLIGHTER\'S LOG\n\nYou are the Board\'s inspector, sent to Cape Verity because the keeper has stopped answering his signals. Tonight a grain steamer, the Halcyon, will pass the Cape. Without the light she will not see the rocks.\n\n' + E.describe(s));
+    refresh();
+    $('cmd').focus();
+  }
+
+  $('form').addEventListener('submit', (e) => { e.preventDefault(); const v = $('cmd').value; $('cmd').value = ''; run(v); });
+  $('cmd').addEventListener('keydown', (e) => {
+    if (e.key === 'ArrowUp' && hist.length) { hpos = Math.max(0, hpos - 1); $('cmd').value = hist[hpos] || ''; e.preventDefault(); }
+    if (e.key === 'ArrowDown' && hist.length) { hpos = Math.min(hist.length, hpos + 1); $('cmd').value = hist[hpos] || ''; e.preventDefault(); }
+  });
+  $('newgame').addEventListener('click', start);
+  $('mode').addEventListener('change', () => {
+    const m = $('mode').value;
+    $('cfg').className = m === 'scripted' ? 'hide' : '';
+    $('keyrow').className = m === 'openai' ? '' : 'hide';
+    $('host').placeholder = m === 'openai' ? 'https://api.openai.com/v1' : 'http://localhost:11434';
+    $('model').placeholder = m === 'openai' ? 'gpt-4o-mini' : 'llama3.1:8b';
+  });
+  ['look', 'inventory', 'hint', 'n', 's', 'e', 'w', 'u', 'd'].forEach((c) => {
+    const b = document.createElement('button');
+    b.type = 'button'; b.className = 'ghost'; b.textContent = c;
+    b.addEventListener('click', () => run(c));
+    $('quick').appendChild(b);
+  });
+  start();
+})();
+</script>
+</body>
+</html>
